@@ -1,16 +1,14 @@
 # regression_model.py
 import pandas as pd
-import numpy as np
+from datetime import datetime
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.inspection import permutation_importance
-from scipy.optimize import minimize
-import matplotlib.pyplot as plt
+import numpy as np
 
-# Define the regression model training function
 def train_regression_model(dat):
     # Filter for running activities
     dat = dat[dat['Activity Type'] == 'Run']
@@ -90,38 +88,6 @@ def train_regression_model(dat):
 
     return dat, predicted_5k_times_all_df
 
-# Define upper and lower bounds for each parameter
-bounds = {
-    'cumulative_distance_easy_short': (0, 20),
-    'cumulative_time_easy_short': (0, 1000),
-    'cumulative_distance_easy_medium': (0, 50),
-    'cumulative_time_easy_medium': (0, 2000),
-    'cumulative_distance_easy_long': (10, 30),
-    'cumulative_time_easy_long': (0, 3000),
-    'cumulative_distance_threshold_short': (0, 10),
-    'cumulative_time_threshold_short': (0, 1000),
-    'cumulative_distance_threshold_medium': (9, 20),
-    'cumulative_time_threshold_medium': (0, 2000),
-    'cumulative_distance_threshold_long': (0, 30),
-    'cumulative_time_threshold_long': (0, 3000),
-    'cumulative_distance_hard_short': (5, 10),
-    'cumulative_time_hard_short': (0, 1000),
-    'cumulative_distance_hard_medium': (0, 20),
-    'cumulative_time_hard_medium': (0, 2000),
-    'cumulative_distance_hard_long': (0, 30),
-    'cumulative_time_hard_long': (0, 3000),
-    'easy_short_runs': (0, 10),
-    'easy_medium_runs': (1, 10),
-    'easy_long_runs': (1, 10),
-    'threshold_short_runs': (0, 10),
-    'threshold_medium_runs': (2, 10),
-    'threshold_long_runs': (0, 10),
-    'hard_short_runs': (1, 10),
-    'hard_medium_runs': (0, 10),
-    'hard_long_runs': (0, 10),
-}
-
-# Adjust the predicted values to fall within the specified ranges and distribute over 4 weeks with progression
 def adjust_and_distribute(values, bounds, weeks=4):
     adjusted_values = {}
     for key, value in values.items():
