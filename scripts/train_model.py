@@ -4,6 +4,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.impute import SimpleImputer
 import joblib
+import os
 
 def train_and_save_model(data_path, model_path, imputer_path, scaler_path):
     dat = pd.read_csv(data_path)
@@ -51,9 +52,10 @@ def train_and_save_model(data_path, model_path, imputer_path, scaler_path):
     model.fit(X_train, y_train)
 
     # Save the model, imputer, and scaler
+    os.makedirs(os.path.dirname(model_path), exist_ok=True)
     joblib.dump(model, model_path)
     joblib.dump(imputer, imputer_path)
     joblib.dump(scaler, scaler_path)
 
 # Call the function to train and save the model
-train_and_save_model('../data/activities.csv', 'models/trained_model.pkl', 'models/imputer.pkl', 'models/scaler.pkl')
+train_and_save_model('../data/activities.csv', '../models/trained_model.pkl', '../models/imputer.pkl', '../models/scaler.pkl')
