@@ -1,5 +1,3 @@
-# main.py
-
 from regression_model import predict_5k_times, adjust_and_distribute, calculate_fitness_score, time_to_seconds
 import pandas as pd
 import numpy as np
@@ -35,8 +33,8 @@ dat = pd.read_csv('../data/activities.csv')
 age = int(input("Enter your age: "))
 gender = input("Enter your gender (M/F): ")
 
-# Predict 5k times and calculate fitness scores
-dat = predict_5k_times('../data/activities.csv', 'models/trained_model.pkl', 'models/imputer.pkl', 'models/scaler.pkl')
+# Predict 5K times and calculate fitness scores
+dat = predict_5k_times(dat, '../models/trained_model.pkl', '../models/imputer.pkl', '../models/scaler.pkl')
 dat['Fitness Score'] = dat['Predicted 5K Time'].apply(lambda x: calculate_fitness_score(x, age, gender)).clip(1, 100)
 
 # Save the DataFrame with fitness scores to a new CSV file
