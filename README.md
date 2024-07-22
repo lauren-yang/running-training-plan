@@ -24,4 +24,4 @@
 
 5. **Output**:
    - The generated training plan will be saved in the `output/` directory as `aggregated_recommended_training_plan.csv`.
-   - The training plan will also be saved onto your computer as 'aggregated_recommended_training_plan.csv'
+   - The training plan will also be saved onto your computer as 'aggregated_recommended_training_plan.csv' if running in terminal.
