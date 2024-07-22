@@ -1,17 +1,40 @@
-# main.py
-
-import pandas as pd
 from regression_model import train_regression_model, adjust_and_distribute, calculate_fitness_score, time_to_seconds
+import pandas as pd
+import numpy as np
+
+def classify_activity(row, difficulty_dict, distance_dict, pace_dict):
+    difficulty = ''
+    distance = ''
+    
+    if not pd.isnull(row['Average Heart Rate']):
+        for key, value in difficulty_dict.items():
+            if value['min'] <= row['Average Heart Rate'] < value['max']:
+                difficulty = key
+                break
+    else:
+        for time_range, paces in pace_dict.items():
+            lower, upper = map(int, time_range.split('-'))
+            if lower <= row['Predicted 5K Time'] < upper:
+                for pace_key, pace_value in paces.items():
+                    if pace_value[0] <= row['Average Speed'] < pace_value[1]:
+                        difficulty = pace_key
+                        break
+                break
+
+    for key, value in distance_dict.items():
+        if value['min'] <= row['Distance'] < value['max']:
+            distance = key
+            break
+            
+    return difficulty, distance
 
 # Load the data
 dat = pd.read_csv('../data/activities.csv')
 age = int(input("Enter your age: "))
 gender = input("Enter your gender (M/F): ")
 
-# Run the regression model and get the updated DataFrame
+# Train regression model and calculate fitness scores
 dat = train_regression_model(dat)
-
-# Ensure the fitness score is a value between 1 and 100
 dat['Fitness Score'] = dat['Predicted 5K Time'].apply(lambda x: calculate_fitness_score(x, age, gender)).clip(1, 100)
 
 # Save the DataFrame with fitness scores to a new CSV file
@@ -25,65 +48,72 @@ print("Your most recent fitness score is:", most_recent_fitness_score)
 # Load the data with fitness scores
 activities = pd.read_csv('../data/activities_with_fitness_scores.csv')
 
+# Classify activities
+difficulty_dict = {
+    'easy': {'min': 0, 'max': 171},
+    'threshold': {'min': 171, 'max': 183},
+    'hard': {'min': 183, 'max': float('inf')}
+}
+pace_dict = {
+    "900-1020": {
+        "easy": (0, 3.6),
+        "threshold": (3.6, 5.9),
+        "hard": (5.9, float('inf'))
+    },
+    "1020-1080": {
+        "easy": (0, 3.6),
+        "threshold": (3.6, 5.25),
+        "hard": (5.25, float('inf'))
+    },
+    "1080-1200": {
+        "easy": (0, 3.1),
+        "threshold": (3.1, 4.5),
+        "hard": (4.5, float('inf'))
+    },
+    "1200-1320": {
+        "easy": (0, 3.3),
+        "threshold": (3.3, 3.8),
+        "hard": (3.8, float('inf'))
+    },
+    "1320-1440": {
+        "easy": (0, 7.5),
+        "threshold": (5.5, 6.5),
+        "hard": (4.5, float('inf'))
+    },
+    "1440-1560": {
+        "easy": (0, 7.5),
+        "threshold": (5.5, 6.5),
+        "hard": (4.5, float('inf'))
+    },
+    "1560-2000000000000": {
+        "easy": (6.5, 7.5),
+        "threshold": (5.5, 6.5),
+        "hard": (4.5, float('inf'))
+    },
+    "1501-2000000000000": {
+        "easy": (6.5, 7.5),
+        "threshold": (5.5, 6.5),
+        "hard": (4.5, float('inf'))
+    },
+    # Add more ranges as needed
+}
+distance_dict = {
+    'short': {'min': 0, 'max': 5},
+    'medium': {'min': 5, 'max': 10},
+    'long': {'min': 10, 'max': float('inf')}
+}
+
+activities[['Difficulty', 'Distance Type']] = activities.apply(lambda row: classify_activity(row, difficulty_dict, distance_dict, pace_dict), axis=1, result_type='expand')
+
+# Save the new csv with classifications
+activities.to_csv('../data/activities_with_fitness_scores.csv', index=False)
+
 # Group activities by week
 activities['Week'] = pd.to_datetime(activities['Activity Date']).dt.to_period('W')
 grouped_activities = activities.groupby('Week')
 
 # Summarize weekly data
 def summarize_week(group):
-    difficulty_dict = {
-        'easy': {'min': 0, 'max': 171},
-        'threshold': {'min': 171, 'max': 183},
-        'hard': {'min': 183, 'max': float('inf')}
-    }
-    distance_dict = {
-        'short': {'min': 0, 'max': 5},
-        'medium': {'min': 5, 'max': 10},
-        'long': {'min': 10, 'max': float('inf')}
-    }
-    pace_dict = {
-        "900-1020": {
-            "easy": (0, 3.6),
-            "threshold": (3.6, 5.9),
-            "hard": (5.9, float('inf'))
-        },
-        "1020-1080": {
-            "easy": (0, 3.6),
-            "threshold": (3.6, 5.25),
-            "hard": (5.25, float('inf'))
-        },
-        "1080-1200": {
-            "easy": (0, 3.1),
-            "threshold": (3.1, 4.5),
-            "hard": (4.5, float('inf'))
-        },
-        "1200-1320": {
-            "easy": (0, 3.3),
-            "threshold": (3.3, 3.8),
-            "hard": (3.8, float('inf'))
-        },
-        "1320-1440": {
-            "easy": (0, 7.5),
-            "threshold": (5.5, 6.5),
-            "hard": (4.5, float('inf'))
-        },
-        "1440-1560": {
-            "easy": (0, 7.5),
-            "threshold": (5.5, 6.5),
-            "hard": (4.5, float('inf'))
-        },
-        "1560-2000000000000": {
-            "easy": (6.5, 7.5),
-            "threshold": (5.5, 6.5),
-            "hard": (4.5, float('inf'))
-        },
-        "1501-2000000000000": {
-            "easy": (6.5, 7.5),
-            "threshold": (5.5, 6.5),
-            "hard": (4.5, float('inf'))
-        },
-    }
-
     summary = {
         'easy_long_runs': len(group[(group['Difficulty'] == 'easy') & (group['Distance Type'] == 'long')]),
         'threshold_long_runs': len(group[(group['Difficulty'] == 'threshold') & (group['Distance Type'] == 'long')]),
@@ -156,6 +186,24 @@ features = ['cumulative_distance_easy_short', 'cumulative_time_easy_short',
             'hard_short_runs', 'hard_medium_runs', 'hard_long_runs']
 target = 'Change in Fitness Score'
 
+# Load the CSV file
+activities_forpred = pd.read_csv('../data/activities_with_fitness_scores.csv')
+
+# Sort by Activity Date in descending order to get the latest activities first
+activities_sorted = activities_forpred.sort_values(by='Activity Date', ascending=False)
+
+# Retrieve the latest predicted 5k time
+if not activities_sorted.empty and 'Predicted 5K Time' in activities_sorted.columns:
+    latest_predicted_5k_time = activities_sorted.iloc[0]['Predicted 5K Time']
+    latest_5k_date = activities_sorted.iloc[0]['Activity Date']
+
+print('What is your goal 5k time? (use format MN:SS:MS')
+goal_5k = input()
+goal_5k = time_to_seconds(goal_5k)
+
+# Convert to fitness score
+desired_increase = calculate_fitness_score(latest_predicted_5k_time - goal_5k, age, gender)
+
 # Separate features and target for the rows with target values
 data_with_target = weekly_training.dropna(subset=[target])
 X = data_with_target[features]
@@ -176,16 +224,6 @@ model.fit(X_train, y_train)
 def objective_function(feature_values_scaled):
     prediction = model.predict([feature_values_scaled])[0]
     return np.abs(prediction - desired_increase)
-
-# Get the latest predicted 5k time
-activities_sorted = activities.sort_values(by='Activity Date', ascending=False)
-latest_predicted_5k_time = activities_sorted.iloc[0]['Predicted 5K Time']
-latest_5k_date = activities_sorted.iloc[0]['Activity Date']
-
-goal_5k = input('What is your goal 5k time? (use format MN:SS:MS): ')
-goal_5k = time_to_seconds(goal_5k)
-
-desired_increase = calculate_fitness_score(latest_predicted_5k_time - goal_5k, age, gender)
 
 # Divide the desired increase by 4 for a one-month plan
 desired_increase_per_week = desired_increase / 4
@@ -236,9 +274,8 @@ bounds = {
     'hard_long_runs': (0, 10),
 }
 
-# Generate a training plan
-weeks = 4
-weekly_plan = adjust_and_distribute(optimized_feature_values_dict, bounds, weeks)
+# Adjust the predicted values to fall within the specified ranges and distribute over 4 weeks with progression
+weekly_plan = adjust_and_distribute(optimized_feature_values_dict, bounds, weeks=4)
 
 # Convert the training plan to a DataFrame for better readability
 training_plan_df = pd.DataFrame(weekly_plan)
