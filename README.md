@@ -6,7 +6,7 @@
 
 1. **Input Your Data**:
    - Bulk download activities from Strava ([[link](https://support.strava.com/hc/en-us/articles/216918437-Exporting-your-Data-and-Bulk-Export)])
-   - Place your activities data in a CSV file named `activities.csv` inside the `data/` directory.
+   - Replace the existing file with your activity data in a CSV file named `activities.csv` inside the `data/` directory.
    - The CSV file should contain the following columns: `Activity Date`, `Activity Type`, `Distance`, `Average Speed`, `Average Heart Rate`, `Average Cadence`, and `Predicted 5K Time`.
 
 3. **Install Dependencies**:
