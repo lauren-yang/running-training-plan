@@ -1,16 +1,11 @@
-# train_model.py
-
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.impute import SimpleImputer
-from sklearn.metrics import mean_squared_error, r2_score
 import joblib
 
-# Function to train and save the regression model
 def train_and_save_model(data_path, model_path, imputer_path, scaler_path):
-    # Load your dataset
     dat = pd.read_csv(data_path)
 
     # Filter for running activities
@@ -55,19 +50,10 @@ def train_and_save_model(data_path, model_path, imputer_path, scaler_path):
     # Train the model using the training data
     model.fit(X_train, y_train)
 
-    # Make predictions using the testing data
-    y_pred = model.predict(X_test)
-
-    # Calculate and print the mean squared error and R^2 score
-    mse = mean_squared_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
-    print(f"Mean squared error (MSE): {mse}")
-    print(f"Coefficient of determination (R^2): {r2}")
-
     # Save the model, imputer, and scaler
     joblib.dump(model, model_path)
     joblib.dump(imputer, imputer_path)
     joblib.dump(scaler, scaler_path)
 
-# Train and save the model
+# Call the function to train and save the model
 train_and_save_model('data/activities.csv', 'models/trained_model.pkl', 'models/imputer.pkl', 'models/scaler.pkl')
