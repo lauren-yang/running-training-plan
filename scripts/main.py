@@ -66,6 +66,94 @@ dat['Fitness Score'] = dat['Fitness Score'].clip(1, 100)
 dat.to_csv('../output/activities_with_fitness_scores.csv', index=False)
 print("The data with fitness scores has been saved to 'activities_with_fitness_scores.csv'")
 
+# Classify each activity
+def classify_activity(row, difficulty_dict, distance_dict, pace_dict):
+    difficulty = ''
+    distance = ''
+    
+    if not pd.isnull(row['Average Heart Rate']):
+        for key, value in difficulty_dict.items():
+            if value['min'] <= row['Average Heart Rate'] < value['max']:
+                difficulty = key
+                break
+    else:
+        for time_range, paces in pace_dict.items():
+            lower, upper = map(int, time_range.split('-'))
+            if lower <= row['Predicted 5K Time'] < upper:
+                for pace_key, pace_value in paces.items():
+                    if pace_value[0] <= row['Average Speed'] < pace_value[1]:
+                        difficulty = pace_key
+                        break
+                break
+
+    for key, value in distance_dict.items():
+        if value['min'] <= row['Distance'] < value['max']:
+            distance = key
+            break
+            
+    return difficulty, distance
+
+# Mock dictionaries for classification
+difficulty_dict = {
+    'easy': {'min': 0, 'max': 171},
+    'threshold': {'min': 171, 'max': 183},
+    'hard': {'min': 183, 'max': float('inf')}
+}
+
+pace_dict = {
+    "900-1020": {
+        "easy": (0, 3.6),
+        "threshold": (3.6, 5.9),
+        "hard": (5.9, float('inf'))
+    },
+    "1020-1080": {
+        "easy": (0, 3.6),
+        "threshold": (3.6, 5.25),
+        "hard": (5.25, float('inf'))
+    },
+    "1080-1200": {
+        "easy": (0, 3.1),
+        "threshold": (3.1, 4.5),
+        "hard": (4.5, float('inf'))
+    },
+    "1200-1320": {
+        "easy": (0, 3.3),
+        "threshold": (3.3, 3.8),
+        "hard": (3.8, float('inf'))
+    },
+    "1320-1440": {
+        "easy": (0, 7.5),
+        "threshold": (5.5, 6.5),
+        "hard": (4.5, float('inf'))
+    },
+    "1440-1560": {
+        "easy": (0, 7.5),
+        "threshold": (5.5, 6.5),
+        "hard": (4.5, float('inf'))
+    },
+    "1560-2000000000000": {
+        "easy": (6.5, 7.5),
+        "threshold": (5.5, 6.5),
+        "hard": (4.5, float('inf'))
+    },
+    "1501-2000000000000": {
+        "easy": (6.5, 7.5),
+        "threshold": (5.5, 6.5),
+        "hard": (4.5, float('inf'))
+    },
+}
+
+distance_dict = {
+    'short': {'min': 0, 'max': 5},
+    'medium': {'min': 5, 'max': 10},
+    'long': {'min': 10, 'max': float('inf')}
+}
+
+dat[['Difficulty', 'Distance Type']] = dat.apply(lambda row: classify_activity(row, difficulty_dict, distance_dict, pace_dict), axis=1, result_type='expand')
+
+# Save the new csv with classifications
+dat.to_csv('../output/activities_wfs_types.csv', index=False)
+
 # Extract the week from the date
 dat['Week'] = pd.to_datetime(dat['Activity Date']).dt.to_period('W')
 
