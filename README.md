@@ -23,4 +23,4 @@
      ```
 
 5. **Output**:
-   - The generated training plan will be saved in the `output/` directory as `training_plan.csv`.
+   - The generated training plan will be saved in the `output/` directory as `aggregated_recommended_training_plan.csv`.
