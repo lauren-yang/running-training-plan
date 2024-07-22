@@ -7,6 +7,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.inspection import permutation_importance
 import numpy as np
+import joblib
 
 def train_regression_model(dat):
     # Filter for running activities
@@ -78,6 +79,41 @@ def train_regression_model(dat):
 
     # Add predicted 5K times to the original dataframe
     dat['Predicted 5K Time'] = predicted_5k_times_all
+
+    return dat
+
+def predict_5k_times(dat, model_path, imputer_path, scaler_path):
+    model = joblib.load(model_path)
+    imputer = joblib.load(imputer_path)
+    scaler = joblib.load(scaler_path)
+
+    # Filter for running activities
+    dat = dat[dat['Activity Type'] == 'Run']
+
+    # Specify the date format
+    date_format = "%b %d, %Y, %I:%M:%S %p"
+
+    # Create a datetime column
+    dat['Activity Date'] = pd.to_datetime(dat['Activity Date'], format=date_format)
+
+    # Sort data by date
+    dat = dat.sort_values('Activity Date')
+
+    # Create cumulative metrics
+    dat['Cumulative Distance'] = dat['Distance'].cumsum()
+    dat['Cumulative Duration'] = dat['Moving Time'].cumsum()
+
+    # Select features for prediction
+    features = ['Distance', 'Average Speed', 'Average Heart Rate', 'Average Cadence', 'Cumulative Distance', 'Cumulative Duration']
+    X = dat[features]
+
+    # Impute and scale the features
+    X_imputed = imputer.transform(X)
+    X_scaled = scaler.transform(X_imputed)
+
+    # Predict 5K times
+    predicted_5k_times = model.predict(X_scaled)
+    dat['Predicted 5K Time'] = predicted_5k_times
 
     return dat
 
