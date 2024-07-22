@@ -1,14 +1,41 @@
 import pandas as pd
+import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.inspection import permutation_importance
-import numpy as np
 from scipy.optimize import minimize
+import matplotlib.pyplot as plt
 
-def train_regression_model(X, y, dat, features, target):
+# Define the regression model training function
+def train_regression_model(dat):
+    # Filter for running activities
+    dat = dat[dat['Activity Type'] == 'Run']
+
+    # Specify the date format
+    date_format = "%b %d, %Y, %I:%M:%S %p"
+
+    # Create a datetime column
+    dat['Activity Date'] = pd.to_datetime(dat['Activity Date'], format=date_format)
+
+    # Sort data by date
+    dat = dat.sort_values('Activity Date')
+
+    # Create cumulative metrics
+    dat['Cumulative Distance'] = dat['Distance'].cumsum()
+    dat['Cumulative Duration'] = dat['Moving Time'].cumsum()
+
+    # Select features and target variable
+    features = ['Distance', 'Average Speed', 'Average Heart Rate', 'Average Cadence', 'Cumulative Distance', 'Cumulative Duration']
+    target = 'Best 5k'
+
+    # Separate features and target for the rows with target values
+    dat_with_target = dat.dropna(subset=[target])
+    X = dat_with_target[features]
+    y = dat_with_target[target]
+
     # Impute missing values in the features
     imputer = SimpleImputer(strategy='mean')
     X_imputed = imputer.fit_transform(X)
@@ -54,131 +81,74 @@ def train_regression_model(X, y, dat, features, target):
     # Add predicted 5K times to the original dataframe
     dat['Predicted 5K Time'] = predicted_5k_times_all
 
-    return X_scaled, X_original_scaled, dat
+    # Save the predictions in a new dataframe
+    predicted_5k_times_all_df = dat[['Activity Date', 'Distance', 'Average Speed', 'Average Heart Rate', 'Average Cadence', 'Cumulative Distance', 'Cumulative Duration', 'Predicted 5K Time']]
 
-def optimize_training_plan(weekly_training, features, target, desired_increase):
-    # Separate features and target for the rows with target values
-    data_with_target = weekly_training.dropna(subset=[target])
-    X = data_with_target[features]
-    y = data_with_target[target]
+    # Display the number of rows in the new dataframe
+    print(f"Number of rows in the predicted_5k_times_all_df DataFrame: {len(predicted_5k_times_all)}")
 
-    # Normalize/standardize features
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
+    return dat, predicted_5k_times_all_df
 
-    # Split the data into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+# Define upper and lower bounds for each parameter
+bounds = {
+    'cumulative_distance_easy_short': (0, 20),
+    'cumulative_time_easy_short': (0, 1000),
+    'cumulative_distance_easy_medium': (0, 50),
+    'cumulative_time_easy_medium': (0, 2000),
+    'cumulative_distance_easy_long': (10, 30),
+    'cumulative_time_easy_long': (0, 3000),
+    'cumulative_distance_threshold_short': (0, 10),
+    'cumulative_time_threshold_short': (0, 1000),
+    'cumulative_distance_threshold_medium': (9, 20),
+    'cumulative_time_threshold_medium': (0, 2000),
+    'cumulative_distance_threshold_long': (0, 30),
+    'cumulative_time_threshold_long': (0, 3000),
+    'cumulative_distance_hard_short': (5, 10),
+    'cumulative_time_hard_short': (0, 1000),
+    'cumulative_distance_hard_medium': (0, 20),
+    'cumulative_time_hard_medium': (0, 2000),
+    'cumulative_distance_hard_long': (0, 30),
+    'cumulative_time_hard_long': (0, 3000),
+    'easy_short_runs': (0, 10),
+    'easy_medium_runs': (1, 10),
+    'easy_long_runs': (1, 10),
+    'threshold_short_runs': (0, 10),
+    'threshold_medium_runs': (2, 10),
+    'threshold_long_runs': (0, 10),
+    'hard_short_runs': (1, 10),
+    'hard_medium_runs': (0, 10),
+    'hard_long_runs': (0, 10),
+}
 
-    # Create a Ridge regression model
-    model = Ridge()
-    model.fit(X_train, y_train)
+# Adjust the predicted values to fall within the specified ranges and distribute over 4 weeks with progression
+def adjust_and_distribute(values, bounds, weeks=4):
+    adjusted_values = {}
+    for key, value in values.items():
+        lower, upper = bounds[key]
+        adjusted_value = np.clip(value, lower, upper)
+        adjusted_values[key] = adjusted_value
 
-    # Define the objective function
-    def objective_function(feature_values_scaled):
-        prediction = model.predict([feature_values_scaled])[0]
-        return np.abs(prediction - desired_increase)
+    # Define progression factors to increase difficulty each week
+    progression_factors = [0.242, 0.253, 0.258, 0.247]
+    progression_factors = np.array(progression_factors) / np.sum(progression_factors)
 
-    # Set initial values for the optimization (mean of each feature)
-    initial_values = np.mean(X_scaled, axis=0)
+    # Initialize a list to hold the weekly plans
+    weekly_plans = []
 
-    # Run the optimization
-    result = minimize(objective_function, initial_values, method='BFGS')
+    # Ensure each plan has at least two easy long runs and three short hard runs over the 4 weeks
+    min_easy_long_runs = 2
+    min_hard_short_runs = 3
 
-    # Get the optimized feature values
-    optimized_feature_values_scaled = result.x
+    # Distribute the values over the weeks with progression
+    for week in range(weeks):
+        week_plan = {k: (v * progression_factors[week]) for k, v in adjusted_values.items()}
 
-    # Inverse transform to get the original scale values
-    optimized_feature_values = scaler.inverse_transform([optimized_feature_values_scaled])[0]
+        # Adjust to ensure the minimum number of runs
+        if week == 0:
+            week_plan['easy_long_runs'] = max(week_plan.get('easy_long_runs', 0), min_easy_long_runs)
+            week_plan['hard_short_runs'] = max(week_plan.get('hard_short_runs', 0), min_hard_short_runs)
 
-    # Map the optimized feature values back to the feature names
-    optimized_feature_values_dict = dict(zip(features, optimized_feature_values))
+        weekly_plans.append(pd.Series(week_plan).apply(np.round))
 
-    # Define upper and lower bounds for each parameter
-    bounds = {
-        'cumulative_distance_easy_short': (0, 20),
-        'cumulative_time_easy_short': (0, 1000),
-        'cumulative_distance_easy_medium': (0, 50),
-        'cumulative_time_easy_medium': (0, 2000),
-        'cumulative_distance_easy_long': (10, 30),
-        'cumulative_time_easy_long': (0, 3000),
-        'cumulative_distance_threshold_short': (0, 10),
-        'cumulative_time_threshold_short': (0, 1000),
-        'cumulative_distance_threshold_medium': (9, 20),
-        'cumulative_time_threshold_medium': (0, 2000),
-        'cumulative_distance_threshold_long': (0, 30),
-        'cumulative_time_threshold_long': (0, 3000),
-        'cumulative_distance_hard_short': (5, 10),
-        'cumulative_time_hard_short': (0, 1000),
-        'cumulative_distance_hard_medium': (0, 20),
-        'cumulative_time_hard_medium': (0, 2000),
-        'cumulative_distance_hard_long': (0, 30),
-        'cumulative_time_hard_long': (0, 3000),
-        'easy_short_runs': (0, 10),
-        'easy_medium_runs': (1, 10),
-        'easy_long_runs': (1, 10),
-        'threshold_short_runs': (0, 10),
-        'threshold_medium_runs': (2, 10),
-        'threshold_long_runs': (0, 10),
-        'hard_short_runs': (1, 10),
-        'hard_medium_runs': (0, 10),
-        'hard_long_runs': (0, 10),
-    }
-
-    # Adjust the predicted values to fall within the specified ranges and distribute over 4 weeks with progression
-    def adjust_and_distribute(values, bounds, weeks=4):
-        adjusted_values = {}
-        for key, value in values.items():
-            lower, upper = bounds[key]
-            adjusted_value = np.clip(value, lower, upper)
-            adjusted_values[key] = adjusted_value
-
-        # Define progression factors to increase difficulty each week
-        progression_factors = [0.242, 0.253, 0.258, 0.247]
-        progression_factors = np.array(progression_factors) / np.sum(progression_factors)
-
-        # Initialize a list to hold the weekly plans
-        weekly_plans = []
-
-        # Ensure each plan has at least two easy long runs and three short hard runs over the 4 weeks
-        min_easy_long_runs = 2
-        min_hard_short_runs = 3
-
-        # Distribute the values over the weeks with progression
-        for week in range(weeks):
-            week_plan = {k: (v * progression_factors[week]) for k, v in adjusted_values.items()}
-
-            # Adjust to ensure the minimum number of runs
-            if week == 0:
-                week_plan['easy_long_runs'] = max(week_plan.get('easy_long_runs', 0), min_easy_long_runs)
-                week_plan['hard_short_runs'] = max(week_plan.get('hard_short_runs', 0), min_hard_short_runs)
-
-            weekly_plans.append(pd.Series(week_plan).apply(np.round))
-
-        training_plan = pd.concat(weekly_plans, axis=1).T
-        return training_plan
-
-    # Generate a training plan
-    weeks = 4
-    weekly_plan = adjust_and_distribute(optimized_feature_values_dict, bounds, weeks)
-
-    # Convert the training plan to a DataFrame for better readability
-    training_plan_df = pd.DataFrame(weekly_plan)
-
-    # Aggregate cumulative distances for each run type
-    aggregated_plan = training_plan_df[[
-        'cumulative_distance_easy_short', 'cumulative_distance_easy_medium', 'cumulative_distance_easy_long',
-        'cumulative_distance_threshold_short', 'cumulative_distance_threshold_medium', 'cumulative_distance_threshold_long',
-        'cumulative_distance_hard_short', 'cumulative_distance_hard_medium', 'cumulative_distance_hard_long'
-    ]]
-
-    # Rename columns for better readability
-    aggregated_plan.columns = [
-        'Easy Short', 'Easy Medium', 'Easy Long',
-        'Threshold Short', 'Threshold Medium', 'Threshold Long',
-        'Hard Short', 'Hard Medium', 'Hard Long'
-    ]
-
-    # Calculate total distance per week
-    total_distance_per_week = aggregated_plan.sum(axis=1)
-
-    return training_plan_df, aggregated_plan, total_distance_per_week
+    training_plan = pd.concat(weekly_plans, axis=1).T
+    return training_plan
