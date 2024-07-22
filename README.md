@@ -18,10 +18,13 @@
 
 4. **Run the Application**:
    - Navigate to the `scripts/` directory and run the main application script:
+    ```bash
+     python3 train_model.py
+     ```
      ```bash
-     python main.py
+     python3 main.py
      ```
 
-5. **Output**:
+6. **Output**:
    - The generated training plan will be saved in the `output/` directory as `aggregated_recommended_training_plan.csv`.
    - The training plan will also be saved onto your computer as 'aggregated_recommended_training_plan.csv' if running in terminal.
