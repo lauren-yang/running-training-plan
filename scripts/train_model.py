@@ -59,3 +59,5 @@ def train_and_save_model(data_path, model_path, imputer_path, scaler_path):
 
 # Call the function to train and save the model
 train_and_save_model('../data/activities.csv', '../models/trained_model.pkl', '../models/imputer.pkl', '../models/scaler.pkl')
+
+print('Saved.')
