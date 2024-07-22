@@ -1,63 +1,15 @@
 # main.py
+
 import pandas as pd
-from regression_model import train_regression_model, adjust_and_distribute
+from regression_model import train_regression_model, adjust_and_distribute, calculate_fitness_score, time_to_seconds
 
-# Load data
+# Load the data
 dat = pd.read_csv('../data/activities.csv')
-
-# Train regression model and get predicted 5k times
-dat, predicted_5k_times_all_df = train_regression_model(dat)
-
-# Save predicted 5k times to CSV
-predicted_5k_times_all_df.to_csv('../output/predicted_5k_times_all.csv', index=False)
-
-# Function to find the appropriate age range for a given age
-def find_age_range(age, gender):
-    for (age_range, g), (mean, std) in population_stats.items():
-        if age_range[0] <= age <= age_range[1] and g == gender:
-            return mean, std
-    return None, None
-
-# Function to calculate fitness score
-def calculate_fitness_score(predicted_5k_time, age, gender):
-    mean_5k_time, std_5k_time = find_age_range(age, gender)
-    if mean_5k_time is None or std_5k_time is None:
-        raise ValueError("No population statistics available for the specified age and gender group.")
-    fitness_score = 50 + 10 * (mean_5k_time - predicted_5k_time) / std_5k_time
-    return fitness_score
-
-# Population statistics
-population_stats = {
-    ((15, 19), 'F'): (1850, 343.334),
-    ((20, 24), 'F'): (1880, 312.122),
-    ((25, 29), 'F'): (1920, 323.046),
-    ((30, 34), 'F'): (1960, 335.531),
-    ((35, 39), 'F'): (1990, 391.713),
-    ((40, 44), 'F'): (2070, 388.592),
-    ((45, 49), 'F'): (2530, 380.669),
-    ((50, 54), 'F'): (2880, 400.548),
-    ((55, 59), 'F'): (3000, 400.093),
-    ((60, 64), 'F'): (3540, 234.092),
-    ((65, 69), 'F'): (3600, 234.092),
-    ((15, 19), 'M'): (1440, 269.205),
-    ((20, 24), 'M'): (1530, 327.728),
-    ((25, 29), 'M'): (1590, 280.909),
-    ((30, 34), 'M'): (1655, 312.122),
-    ((35, 39), 'M'): (1675, 312.122),
-    ((40, 44), 'M'): (1695, 327.728),
-    ((45, 49), 'M'): (1740, 339.432),
-    ((50, 54), 'M'): (1980, 480.667),
-    ((55, 59), 'M'): (2000, 411.22),
-    ((60, 64), 'M'): (2200, 475.986),
-    ((65, 69), 'M'): (2200, 312.122),
-}
-
-# Ask the user for their age and gender
 age = int(input("Enter your age: "))
 gender = input("Enter your gender (M/F): ")
 
-# Calculate fitness scores for each activity
-dat['Fitness Score'] = dat['Predicted 5K Time'].apply(lambda x: calculate_fitness_score(x, age, gender))
+# Run the regression model and get the updated DataFrame
+dat = train_regression_model(dat)
 
 # Ensure the fitness score is a value between 1 and 100
 dat['Fitness Score'] = dat['Fitness Score'].clip(1, 100)
@@ -209,6 +161,10 @@ dat['Week'] = pd.to_datetime(dat['Activity Date']).dt.to_period('W')
 # Group by week and get the first and last fitness scores
 fitness_score_changes = dat.groupby('Week')['Fitness Score'].agg(['first', 'last']).reset_index()
 fitness_score_changes['Change in Fitness Score'] = fitness_score_changes['last'] - fitness_score_changes['first']
+
+# Convert 'Week' columns to datetime for merging
+fitness_score_changes['Week'] = fitness_score_changes['Week'].apply(lambda x: x.start_time)
+weekly_training['Week'] = pd.to_datetime(weekly_training['Week'].astype(str))
 
 # Merge the fitness score changes with the weekly training summary
 weekly_training = pd.merge(weekly_training, fitness_score_changes[['Week', 'Change in Fitness Score']], on='Week', how='left')
