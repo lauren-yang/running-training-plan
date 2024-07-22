@@ -64,9 +64,14 @@ dat['Fitness Score'] = dat['Fitness Score'].clip(1, 100)
 
 # Save the DataFrame with fitness scores to a new CSV file
 dat.to_csv('../output/activities_with_fitness_scores.csv', index=False)
+
 print("The data with fitness scores has been saved to 'activities_with_fitness_scores.csv'")
 
-# Classify each activity
+# Print the most recent fitness score
+most_recent_fitness_score = dat.iloc[-1]['Fitness Score']
+print("Your most recent fitness score is:", most_recent_fitness_score)
+
+# Function to classify activities
 def classify_activity(row, difficulty_dict, distance_dict, pace_dict):
     difficulty = ''
     distance = ''
@@ -198,6 +203,21 @@ weekly_training.to_csv('../output/weekly_training.csv', index=False)
 # Load the weekly summarized data
 weekly_training = pd.read_csv('../output/weekly_training.csv')
 
+# Extract the week from the date
+dat['Week'] = pd.to_datetime(dat['Activity Date']).dt.to_period('W')
+
+# Group by week and get the first and last fitness scores
+fitness_score_changes = dat.groupby('Week')['Fitness Score'].agg(['first', 'last']).reset_index()
+fitness_score_changes['Change in Fitness Score'] = fitness_score_changes['last'] - fitness_score_changes['first']
+
+# Merge the fitness score changes with the weekly training summary
+weekly_training = pd.merge(weekly_training, fitness_score_changes[['Week', 'Change in Fitness Score']], on='Week', how='left')
+
+# Save the updated weekly training summary to a new csv
+weekly_training.to_csv('../output/weekly_training.csv', index=False)
+
+print("Updated weekly training summary with fitness score changes saved.")
+
 # Select features and target variable
 features = ['cumulative_distance_easy_short', 'cumulative_time_easy_short',
             'cumulative_distance_easy_medium', 'cumulative_time_easy_medium',
@@ -252,8 +272,40 @@ optimized_feature_values = scaler.inverse_transform([optimized_feature_values_sc
 # Map the optimized feature values back to the feature names
 optimized_feature_values_dict = dict(zip(features, optimized_feature_values))
 
+# Define upper and lower bounds for each parameter
+bounds = {
+    'cumulative_distance_easy_short': (0, 20),
+    'cumulative_time_easy_short': (0, 1000),
+    'cumulative_distance_easy_medium': (0, 50),
+    'cumulative_time_easy_medium': (0, 2000),
+    'cumulative_distance_easy_long': (10, 30),
+    'cumulative_time_easy_long': (0, 3000),
+    'cumulative_distance_threshold_short': (0, 10),
+    'cumulative_time_threshold_short': (0, 1000),
+    'cumulative_distance_threshold_medium': (9, 20),
+    'cumulative_time_threshold_medium': (0, 2000),
+    'cumulative_distance_threshold_long': (0, 30),
+    'cumulative_time_threshold_long': (0, 3000),
+    'cumulative_distance_hard_short': (5, 10),
+    'cumulative_time_hard_short': (0, 1000),
+    'cumulative_distance_hard_medium': (0, 20),
+    'cumulative_time_hard_medium': (0, 2000),
+    'cumulative_distance_hard_long': (0, 30),
+    'cumulative_time_hard_long': (0, 3000),
+    'easy_short_runs': (0, 10),
+    'easy_medium_runs': (1, 10),
+    'easy_long_runs': (1, 10),
+    'threshold_short_runs': (0, 10),
+    'threshold_medium_runs': (2, 10),
+    'threshold_long_runs': (0, 10),
+    'hard_short_runs': (1, 10),
+    'hard_medium_runs': (0, 10),
+    'hard_long_runs': (0, 10),
+}
+
 # Generate a training plan
-weekly_plan = adjust_and_distribute(optimized_feature_values_dict, bounds)
+weeks = 4
+weekly_plan = adjust_and_distribute(optimized_feature_values_dict, bounds, weeks)
 
 # Convert the training plan to a DataFrame for better readability
 training_plan_df = pd.DataFrame(weekly_plan)
