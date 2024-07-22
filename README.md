@@ -17,7 +17,7 @@
      ```
 
 4. **Run the Application**:
-   - Navigate to the `scripts/` directory and run the main application script:
+   - Navigate to the `scripts/` directory and run the following scripts:
     ```bash
      python3 train_model.py
      ```
