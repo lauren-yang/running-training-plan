@@ -81,10 +81,7 @@ def train_regression_model(dat):
 
     return dat
 
-# Function to calculate fitness score
 def calculate_fitness_score(predicted_5k_time, age, gender):
-    # Example population statistics (mean and std) for different age ranges and gender groups
-    # Format: {((min_age, max_age), gender): (mean_5k_time, std_5k_time)}
     population_stats = {
         ((15, 19), 'F'): (1850, 343.334),
         ((20, 24), 'F'): (1880, 312.122),
@@ -110,7 +107,6 @@ def calculate_fitness_score(predicted_5k_time, age, gender):
         ((65, 69), 'M'): (2200, 312.122),
     }
 
-    # Function to find the appropriate age range for a given age
     def find_age_range(age, gender):
         for (age_range, g), (mean, std) in population_stats.items():
             if age_range[0] <= age <= age_range[1] and g == gender:
@@ -123,7 +119,6 @@ def calculate_fitness_score(predicted_5k_time, age, gender):
     fitness_score = 50 + 10 * (mean_5k_time - predicted_5k_time) / std_5k_time
     return fitness_score
 
-# Function to convert time to seconds
 def time_to_seconds(time_str):
     parts = time_str.split(':')
     if len(parts) != 3:
@@ -134,7 +129,6 @@ def time_to_seconds(time_str):
     total_seconds = minutes * 60 + seconds + milliseconds / 1000
     return total_seconds
 
-# Adjust the predicted values to fall within the specified ranges and distribute over 4 weeks with progression
 def adjust_and_distribute(values, bounds, weeks=4):
     adjusted_values = {}
     for key, value in values.items():
