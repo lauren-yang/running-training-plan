@@ -17,6 +17,7 @@
      ```
 
 4. **Run the Application**:
+   - Set up Python virtual environment
    - Navigate to the `scripts/` directory and run the following scripts:
     ```bash
      python3 train_model.py
