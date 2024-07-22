@@ -11,7 +11,7 @@ import joblib
 # Function to train and save the regression model
 def train_and_save_model(data_path, model_path, imputer_path, scaler_path):
     # Load your dataset
-    dat = pd.read_csv('data/activities.csv')
+    dat = pd.read_csv(data_path)
 
     # Filter for running activities
     dat = dat[dat['Activity Type'] == 'Run']
