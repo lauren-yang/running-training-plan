@@ -1,6 +1,6 @@
 # running-training-plan
 
-# Training Plan Generator
+# SmartRun: Training Plan Generator
 
 ## Instructions
 
